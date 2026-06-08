@@ -1,0 +1,67 @@
+{
+  "name": "@npm_xiyuan/mcp-npm-radar",
+  "version": "1.0.0",
+  "description": "🚀 Real-time npm package intelligence MCP server - Search, analyze, compare packages, security audit, smart recommendations",
+  "main": "dist/server.js",
+  "bin": {
+    "mcp-npm-radar": "dist/server.js",
+    "npmradar": "dist/cli.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc && chmod +x dist/server.js",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "test": "node dist/test-tools.js",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "claude",
+    "claude-desktop",
+    "npm",
+    "npm-package",
+    "package-manager",
+    "dependency-analysis",
+    "security-audit",
+    "package-search",
+    "package-comparison",
+    "npm-intelligence",
+    "bundlephobia",
+    "npm-trends",
+    "vulnerability-scanner",
+    "dependency-management",
+    "package-advisor",
+    "npm-security",
+    "package-quality"
+  ],
+  "author": "Xiyuan",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiyi1990118/mcp-npm-radar.git"
+  },
+  "homepage": "https://github.com/jiyi1990118/mcp-npm-radar#readme",
+  "bugs": {
+    "url": "https://github.com/jiyi1990118/mcp-npm-radar/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "axios": "^1.17.0",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
