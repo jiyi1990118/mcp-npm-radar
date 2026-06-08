@@ -16,7 +16,7 @@ async function getCached<T>(key: string, fetcher: () => Promise<T>): Promise<T> 
 }
 
 export async function searchPackages(keyword: string, limit: number = 20) {
-  const registry = getSelectedRegistry() || await selectFastestRegistry();
+  const registry = await getSelectedRegistry();
 
   return getCached(`search:${keyword}:${limit}`, async () => {
     const { data } = await axios.get(`${registry}/-/v1/search`, {
@@ -28,7 +28,7 @@ export async function searchPackages(keyword: string, limit: number = 20) {
 }
 
 export async function getPackageInfo(packageName: string) {
-  const registry = getSelectedRegistry() || await selectFastestRegistry();
+  const registry = await getSelectedRegistry();
 
   return getCached(`package:${packageName}`, async () => {
     const { data } = await axios.get(`${registry}/${packageName}`, {

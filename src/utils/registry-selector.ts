@@ -8,6 +8,8 @@ export const NPM_REGISTRIES = [
 ];
 
 let selectedRegistry: string | null = null;
+let lastCheckTime: number = 0;
+const CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
 async function checkRegistry(url: string, timeout: number = 3000): Promise<number> {
   const start = Date.now();
@@ -20,8 +22,6 @@ async function checkRegistry(url: string, timeout: number = 3000): Promise<numbe
 }
 
 export async function selectFastestRegistry(): Promise<string> {
-  if (selectedRegistry) return selectedRegistry;
-
   console.error('Checking npm registries...');
 
   const results = await Promise.all(
@@ -38,15 +38,25 @@ export async function selectFastestRegistry(): Promise<string> {
 
   if (fastest) {
     selectedRegistry = fastest.url;
+    lastCheckTime = Date.now();
     console.error(`Selected ${fastest.name} registry (${fastest.latency}ms)`);
     return fastest.url;
   }
 
   selectedRegistry = NPM_REGISTRIES[0].url;
+  lastCheckTime = Date.now();
   console.error('Using default npm registry');
   return selectedRegistry;
 }
 
-export function getSelectedRegistry(): string {
-  return selectedRegistry || NPM_REGISTRIES[0].url;
+export async function getSelectedRegistry(): Promise<string> {
+  const now = Date.now();
+  const shouldRecheck = !selectedRegistry || (now - lastCheckTime) > CHECK_INTERVAL;
+
+  if (shouldRecheck) {
+    console.error('Registry check interval exceeded, reselecting...');
+    return await selectFastestRegistry();
+  }
+
+  return selectedRegistry!;
 }
