@@ -3,18 +3,18 @@
 [![npm](https://img.shields.io/npm/v/@npm_xiyuan/mcp-npm-radar)](https://www.npmjs.com/package/@npm_xiyuan/mcp-npm-radar)
 [![License](https://img.shields.io/badge/license-ISC-green.svg)](LICENSE)
 
-> 🚀 Real-time npm package intelligence for Claude Desktop and MCP clients
+> 🚀 Real-time npm package search, rankings, and trend analysis for Claude Desktop
 
-MCP server providing comprehensive npm package analysis, search, comparison, and security auditing capabilities.
+MCP server for npm package discovery with powerful ranking and filtering capabilities.
 
 ## ✨ Features
 
-- 🔍 **Advanced Search** - Search packages with filters
-- 📊 **Package Analysis** - Detailed package information
-- ⚖️ **Comparison** - Compare multiple packages
-- 🔒 **Security Audit** - Vulnerability scanning
-- 📦 **Dependency Analysis** - Analyze dependency trees
-- 🎯 **Smart Recommendations** - AI-powered package suggestions
+- 🔍 **Package Search** - Search packages by keyword
+- 📊 **Rankings** - Top packages by downloads
+- 🔥 **Trending** - Growth analysis and hot packages
+- 🏷️ **Category Filter** - Filter by package category
+- 📅 **Date Range** - Filter by publish date
+- 📈 **Weekly Hot** - Hot packages by weekly downloads
 
 ## 🚀 Quick Start
 
@@ -43,15 +43,17 @@ Add to your config file:
 
 Restart Claude Desktop and start using npm intelligence tools!
 
-## 🛠️ Available Tools
+## 🛠️ Available Tools (7 total)
 
-| Tool | Description |
-|------|-------------|
-| `search_packages` | Search npm packages |
-| `get_package_detail` | Get package details |
-| `compare_packages` | Compare packages |
-| `audit_package` | Security audit |
-| `get_package_dependencies` | Dependency analysis |
+| Tool | Description | Data Source |
+|------|-------------|-------------|
+| `search_packages` | Search npm packages by keyword | npm API (real-time) |
+| `get_package_detail` | Get detailed package information | npm API (real-time) |
+| `get_trending_packages` | Growth-based trending packages | Database |
+| `get_top_packages` | Top packages by total downloads | Database |
+| `get_weekly_hot` | Hot packages by weekly downloads | Database |
+| `get_packages_by_category` | Filter packages by category | Database |
+| `get_packages_by_date_range` | Filter by publish date range | Database |
 
 ## 📖 Development
 
