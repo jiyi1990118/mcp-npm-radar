@@ -5,6 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { selectFastestRegistry } from './utils/registry-selector.js';
 import { searchPackages, getPackageInfo } from './api/npm.js';
+import { getTrendingPackages } from './db/queries.js';
 
 const server = new Server(
   {
@@ -52,6 +53,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['package_name'],
+        },
+      },
+      {
+        name: 'get_trending_packages',
+        description: 'Get trending npm packages based on download growth (requires database)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 20)',
+            },
+          },
         },
       },
     ],
@@ -116,6 +130,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify({ success: true, package: packageDetail }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_trending_packages': {
+        const { limit = 20 } = args as { limit?: number };
+        const trending = getTrendingPackages(limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, count: trending.length, packages: trending }, null, 2),
             },
           ],
         };
