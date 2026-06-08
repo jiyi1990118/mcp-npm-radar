@@ -5,7 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { selectFastestRegistry } from './utils/registry-selector.js';
 import { searchPackages, getPackageInfo } from './api/npm.js';
-import { getTrendingPackages } from './db/queries.js';
+import { getTrendingPackages, getTopPackages, getPackagesByCategory, getPackagesByDateRange, getWeeklyHot } from './db/queries.js';
 
 const server = new Server(
   {
@@ -66,6 +66,72 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Maximum results (default: 20)',
             },
           },
+        },
+      },
+      {
+        name: 'get_top_packages',
+        description: 'Get top npm packages by total downloads (requires database)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 50)',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_weekly_hot',
+        description: 'Get hot packages by weekly downloads (requires database)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 50)',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_packages_by_category',
+        description: 'Get packages filtered by category (requires database)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            category: {
+              type: 'string',
+              description: 'Package category (e.g., "web-framework", "cli-tool", "database")',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 50)',
+            },
+          },
+          required: ['category'],
+        },
+      },
+      {
+        name: 'get_packages_by_date_range',
+        description: 'Get packages published within a date range (requires database)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            start_date: {
+              type: 'string',
+              description: 'Start date (ISO format: YYYY-MM-DD)',
+            },
+            end_date: {
+              type: 'string',
+              description: 'End date (ISO format: YYYY-MM-DD)',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 50)',
+            },
+          },
+          required: ['start_date', 'end_date'],
         },
       },
     ],
@@ -144,6 +210,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify({ success: true, count: trending.length, packages: trending }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_top_packages': {
+        const { limit = 50 } = args as { limit?: number };
+        const top = getTopPackages(limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, count: top.length, packages: top }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_weekly_hot': {
+        const { limit = 50 } = args as { limit?: number };
+        const hot = getWeeklyHot(limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, count: hot.length, packages: hot }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_packages_by_category': {
+        const { category, limit = 50 } = args as { category: string; limit?: number };
+        const packages = getPackagesByCategory(category, limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, category, count: packages.length, packages }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_packages_by_date_range': {
+        const { start_date, end_date, limit = 50 } = args as { start_date: string; end_date: string; limit?: number };
+        const startTime = new Date(start_date).getTime();
+        const endTime = new Date(end_date).getTime();
+        const packages = getPackagesByDateRange(startTime, endTime, limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, date_range: { start: start_date, end: end_date }, count: packages.length, packages }, null, 2),
             },
           ],
         };
