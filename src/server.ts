@@ -3,6 +3,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { selectFastestRegistry } from './utils/registry-selector.js';
+import { searchPackages, getPackageInfo } from './api/npm.js';
 
 const server = new Server(
   {
@@ -62,25 +64,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case 'search_packages':
+      case 'search_packages': {
+        const { keyword, limit = 20 } = args as { keyword: string; limit?: number };
+        const results = await searchPackages(keyword, limit);
+
+        const packages = results.objects?.map((obj: any) => ({
+          name: obj.package.name,
+          version: obj.package.version,
+          description: obj.package.description,
+          author: obj.package.author?.name || obj.package.publisher?.username,
+          downloads: obj.package.downloads,
+          quality: obj.score.detail.quality,
+          popularity: obj.score.detail.popularity,
+          maintenance: obj.score.detail.maintenance,
+        })) || [];
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ message: 'search_packages - Coming soon' }, null, 2),
+              text: JSON.stringify({ success: true, count: packages.length, packages }, null, 2),
             },
           ],
+        };
+      }
+
+      case 'get_package_detail': {
+        const { package_name } = args as { package_name: string };
+        const info = await getPackageInfo(package_name);
+
+        const latest = info['dist-tags']?.latest;
+        const latestVersion = info.versions?.[latest];
+
+        const packageDetail = {
+          name: info.name,
+          version: latest,
+          description: info.description,
+          author: info.author?.name || info.maintainers?.[0]?.name,
+          license: latestVersion?.license || info.license,
+          repository: info.repository?.url,
+          homepage: info.homepage,
+          keywords: info.keywords,
+          dependencies: latestVersion?.dependencies,
+          devDependencies: latestVersion?.devDependencies,
+          created: info.time?.created,
+          modified: info.time?.modified,
         };
 
-      case 'get_package_detail':
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ message: 'get_package_detail - Coming soon' }, null, 2),
+              text: JSON.stringify({ success: true, package: packageDetail }, null, 2),
             },
           ],
         };
+      }
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -99,6 +138,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+  // Select fastest registry on startup
+  await selectFastestRegistry();
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('npm-radar MCP server running on stdio');
