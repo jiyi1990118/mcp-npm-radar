@@ -1,10 +1,21 @@
 import Database from 'better-sqlite3';
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { homedir } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.SQLITE_DB_PATH || './npmradar.db';
+
+// Use user's home directory for database storage (npm package best practice)
+function getDataDir(): string {
+  const dataDir = join(homedir(), '.npm-radar');
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
+  return dataDir;
+}
+
+const DB_PATH = process.env.SQLITE_DB_PATH || join(getDataDir(), 'npmradar.db');
 
 let db: Database.Database | null = null;
 

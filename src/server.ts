@@ -6,6 +6,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { selectFastestRegistry } from './utils/registry-selector.js';
 import { searchPackages, getPackageInfo } from './api/npm.js';
 import { getTrendingPackages, getTopPackages, getPackagesByCategory, getPackagesByDateRange, getWeeklyHot } from './db/queries.js';
+import { comparePackages, getBundleSize } from './api/compare.js';
+import { getPackageVulnerabilities, findAlternatives } from './api/security.js';
+import { getRelatedPackages } from './api/related.js';
+import { getDownloadHistory } from './api/stats.js';
+import { checkTypescriptSupport } from './api/typescript.js';
+import { getPackageQualityScore } from './api/quality.js';
 
 const server = new Server(
   {
@@ -134,6 +140,136 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['start_date', 'end_date'],
         },
       },
+      {
+        name: 'compare_packages',
+        description: 'Compare multiple npm packages side-by-side',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            packages: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of package names to compare (2-5 packages)',
+            },
+          },
+          required: ['packages'],
+        },
+      },
+      {
+        name: 'get_bundle_size',
+        description: 'Get the bundle size of a package (minified and gzipped)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+            version: {
+              type: 'string',
+              description: 'Package version (optional, defaults to latest)',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'get_package_vulnerabilities',
+        description: 'Check for known security vulnerabilities in a package',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+            version: {
+              type: 'string',
+              description: 'Package version (optional, defaults to latest)',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'find_alternatives',
+        description: 'Find alternative packages with similar functionality',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name to find alternatives for',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'get_related_packages',
+        description: 'Get packages related to a specific package',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum results (default: 10)',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'get_download_history',
+        description: 'Get download history and trends for a package',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+            period: {
+              type: 'string',
+              enum: ['last-day', 'last-week', 'last-month', 'last-year'],
+              description: 'Time period (default: last-month)',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'check_typescript_support',
+        description: 'Check if a package has TypeScript type definitions',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
+      {
+        name: 'get_package_quality_score',
+        description: 'Get comprehensive quality score for a package',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
     ],
   };
 });
@@ -203,7 +339,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_trending_packages': {
         const { limit = 20 } = args as { limit?: number };
-        const trending = getTrendingPackages(limit);
+        const trending = await getTrendingPackages(limit);
 
         return {
           content: [
@@ -217,7 +353,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_top_packages': {
         const { limit = 50 } = args as { limit?: number };
-        const top = getTopPackages(limit);
+        const top = await getTopPackages(limit);
 
         return {
           content: [
@@ -231,7 +367,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_weekly_hot': {
         const { limit = 50 } = args as { limit?: number };
-        const hot = getWeeklyHot(limit);
+        const hot = await getWeeklyHot(limit);
 
         return {
           content: [
@@ -245,7 +381,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_packages_by_category': {
         const { category, limit = 50 } = args as { category: string; limit?: number };
-        const packages = getPackagesByCategory(category, limit);
+        const packages = await getPackagesByCategory(category, limit);
 
         return {
           content: [
@@ -261,13 +397,125 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { start_date, end_date, limit = 50 } = args as { start_date: string; end_date: string; limit?: number };
         const startTime = new Date(start_date).getTime();
         const endTime = new Date(end_date).getTime();
-        const packages = getPackagesByDateRange(startTime, endTime, limit);
+        const packages = await getPackagesByDateRange(startTime, endTime, limit);
 
         return {
           content: [
             {
               type: 'text',
               text: JSON.stringify({ success: true, date_range: { start: start_date, end: end_date }, count: packages.length, packages }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'compare_packages': {
+        const { packages } = args as { packages: string[] };
+        const comparison = await comparePackages(packages);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, comparison }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_bundle_size': {
+        const { package_name, version } = args as { package_name: string; version?: string };
+        const bundleSize = await getBundleSize(package_name, version);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, bundleSize }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_package_vulnerabilities': {
+        const { package_name, version } = args as { package_name: string; version?: string };
+        const vulnerabilities = await getPackageVulnerabilities(package_name, version);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, vulnerabilities }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'find_alternatives': {
+        const { package_name } = args as { package_name: string };
+        const alternatives = await findAlternatives(package_name);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, alternatives }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_related_packages': {
+        const { package_name, limit = 10 } = args as { package_name: string; limit?: number };
+        const related = await getRelatedPackages(package_name, limit);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, related }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_download_history': {
+        const { package_name, period = 'last-month' } = args as { package_name: string; period?: 'last-day' | 'last-week' | 'last-month' | 'last-year' };
+        const history = await getDownloadHistory(package_name, period);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, history }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'check_typescript_support': {
+        const { package_name } = args as { package_name: string };
+        const support = await checkTypescriptSupport(package_name);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, support }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_package_quality_score': {
+        const { package_name } = args as { package_name: string };
+        const quality = await getPackageQualityScore(package_name);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, quality }, null, 2),
             },
           ],
         };

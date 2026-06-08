@@ -1,4 +1,6 @@
 import { getDatabase } from './connection.js';
+import { isCacheValid } from '../utils/cache-manager.js';
+import { refreshTopPackages } from '../utils/data-refresher.js';
 
 export function savePackage(pkg: any) {
   const db = getDatabase();
@@ -26,7 +28,11 @@ export function savePackage(pkg: any) {
   );
 }
 
-export function getTopPackages(limit: number = 50) {
+export async function getTopPackages(limit: number = 50) {
+  if (!isCacheValid('top_packages')) {
+    await refreshTopPackages();
+  }
+
   const db = getDatabase();
   return db.prepare(`
     SELECT * FROM packages
@@ -35,7 +41,11 @@ export function getTopPackages(limit: number = 50) {
   `).all(limit);
 }
 
-export function getPackagesByCategory(category: string, limit: number = 50) {
+export async function getPackagesByCategory(category: string, limit: number = 50) {
+  if (!isCacheValid('top_packages')) {
+    await refreshTopPackages();
+  }
+
   const db = getDatabase();
   return db.prepare(`
     SELECT * FROM packages
@@ -45,7 +55,11 @@ export function getPackagesByCategory(category: string, limit: number = 50) {
   `).all(category, limit);
 }
 
-export function getTrendingPackages(limit: number = 20) {
+export async function getTrendingPackages(limit: number = 20) {
+  if (!isCacheValid('top_packages')) {
+    await refreshTopPackages();
+  }
+
   const db = getDatabase();
   return db.prepare(`
     SELECT
@@ -59,7 +73,11 @@ export function getTrendingPackages(limit: number = 20) {
   `).all(limit);
 }
 
-export function getPackagesByDateRange(startDate: number, endDate: number, limit: number = 50) {
+export async function getPackagesByDateRange(startDate: number, endDate: number, limit: number = 50) {
+  if (!isCacheValid('top_packages')) {
+    await refreshTopPackages();
+  }
+
   const db = getDatabase();
   return db.prepare(`
     SELECT * FROM packages
@@ -69,7 +87,11 @@ export function getPackagesByDateRange(startDate: number, endDate: number, limit
   `).all(startDate, endDate, limit);
 }
 
-export function getWeeklyHot(limit: number = 50) {
+export async function getWeeklyHot(limit: number = 50) {
+  if (!isCacheValid('top_packages')) {
+    await refreshTopPackages();
+  }
+
   const db = getDatabase();
   return db.prepare(`
     SELECT * FROM packages

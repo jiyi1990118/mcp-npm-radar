@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+
+import { savePackage, saveSnapshot } from './db/queries.js';
+
+const testPackages = [
+  {
+    name: 'react',
+    version: '18.2.0',
+    description: 'React is a JavaScript library for building user interfaces.',
+    author: 'Meta',
+    downloads: 25000000,
+    weekly_downloads: 19000000,
+    quality: 0.95,
+    popularity: 0.98,
+    maintenance: 0.99,
+    category: 'web-framework',
+    keywords: ['react', 'ui', 'framework'],
+    license: 'MIT',
+    created_at: 1369786800000,
+  },
+  {
+    name: 'vue',
+    version: '3.3.4',
+    description: 'The Progressive JavaScript Framework',
+    author: 'Evan You',
+    downloads: 8500000,
+    weekly_downloads: 6200000,
+    quality: 0.93,
+    popularity: 0.95,
+    maintenance: 0.97,
+    category: 'web-framework',
+    keywords: ['vue', 'framework', 'frontend'],
+    license: 'MIT',
+    created_at: 1413849600000,
+  },
+  {
+    name: 'express',
+    version: '4.18.2',
+    description: 'Fast, unopinionated, minimalist web framework',
+    author: 'TJ Holowaychuk',
+    downloads: 22000000,
+    weekly_downloads: 18500000,
+    quality: 0.91,
+    popularity: 0.97,
+    maintenance: 0.89,
+    category: 'web-framework',
+    keywords: ['express', 'web', 'framework', 'server'],
+    license: 'MIT',
+    created_at: 1338508800000,
+  },
+  {
+    name: 'typescript',
+    version: '5.2.2',
+    description: 'TypeScript is a language for application scale JavaScript development',
+    author: 'Microsoft',
+    downloads: 35000000,
+    weekly_downloads: 28000000,
+    quality: 0.96,
+    popularity: 0.99,
+    maintenance: 0.98,
+    category: 'language',
+    keywords: ['typescript', 'language', 'javascript'],
+    license: 'Apache-2.0',
+    created_at: 1349395200000,
+  },
+  {
+    name: 'lodash',
+    version: '4.17.21',
+    description: 'Lodash modular utilities.',
+    author: 'John-David Dalton',
+    downloads: 45000000,
+    weekly_downloads: 38000000,
+    quality: 0.89,
+    popularity: 0.98,
+    maintenance: 0.85,
+    category: 'utility',
+    keywords: ['lodash', 'utility', 'functional'],
+    license: 'MIT',
+    created_at: 1365292800000,
+  },
+  {
+    name: 'axios',
+    version: '1.5.0',
+    description: 'Promise based HTTP client for the browser and node.js',
+    author: 'Matt Zabriskie',
+    downloads: 38000000,
+    weekly_downloads: 32000000,
+    quality: 0.92,
+    popularity: 0.97,
+    maintenance: 0.94,
+    category: 'http-client',
+    keywords: ['axios', 'http', 'request'],
+    license: 'MIT',
+    created_at: 1439251200000,
+  },
+  {
+    name: 'vite',
+    version: '4.4.9',
+    description: 'Next generation frontend tooling',
+    author: 'Evan You',
+    downloads: 5500000,
+    weekly_downloads: 4800000,
+    quality: 0.94,
+    popularity: 0.96,
+    maintenance: 0.98,
+    category: 'build-tool',
+    keywords: ['vite', 'build', 'frontend'],
+    license: 'MIT',
+    created_at: 1587513600000,
+  },
+  {
+    name: 'next',
+    version: '13.5.1',
+    description: 'The React Framework',
+    author: 'Vercel',
+    downloads: 6200000,
+    weekly_downloads: 5100000,
+    quality: 0.95,
+    popularity: 0.97,
+    maintenance: 0.99,
+    category: 'web-framework',
+    keywords: ['next', 'react', 'framework', 'ssr'],
+    license: 'MIT',
+    created_at: 1477353600000,
+  },
+  {
+    name: 'eslint',
+    version: '8.49.0',
+    description: 'An AST-based pattern checker for JavaScript.',
+    author: 'Nicholas C. Zakas',
+    downloads: 32000000,
+    weekly_downloads: 27000000,
+    quality: 0.93,
+    popularity: 0.98,
+    maintenance: 0.96,
+    category: 'linter',
+    keywords: ['eslint', 'lint', 'code-quality'],
+    license: 'MIT',
+    created_at: 1372636800000,
+  },
+  {
+    name: 'webpack',
+    version: '5.88.2',
+    description: 'Packs CommonJs/AMD modules for the browser.',
+    author: 'Tobias Koppers',
+    downloads: 18000000,
+    weekly_downloads: 15000000,
+    quality: 0.90,
+    popularity: 0.96,
+    maintenance: 0.91,
+    category: 'build-tool',
+    keywords: ['webpack', 'bundler', 'build'],
+    license: 'MIT',
+    created_at: 1363305600000,
+  },
+];
+
+console.log('Inserting test packages...');
+
+testPackages.forEach(pkg => {
+  savePackage(pkg);
+  console.log(`✓ Saved ${pkg.name}`);
+
+  // Create snapshots for trending calculation (7 days ago)
+  const weekAgo = pkg.downloads * 0.92;
+  const weekAgoWeekly = pkg.weekly_downloads * 0.88;
+  saveSnapshot(pkg.name, weekAgo, weekAgoWeekly);
+  console.log(`✓ Created snapshot for ${pkg.name}`);
+});
+
+console.log('\n✅ Test data inserted successfully!');
+console.log(`📦 Total packages: ${testPackages.length}`);
+console.log('📊 Categories: web-framework, language, utility, http-client, build-tool, linter');
