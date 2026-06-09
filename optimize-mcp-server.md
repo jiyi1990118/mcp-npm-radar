@@ -1,6 +1,66 @@
+---
+title: "Optimize MCP Server"
+description: "A systematic approach to optimizing Model Context Protocol (MCP) servers based on real-world production experience"
+tags: [mcp, optimization, performance, reliability, production, caching, rate-limiting]
+difficulty: intermediate
+estimated_time: "2-5 days"
+prerequisites:
+  - Basic understanding of MCP server architecture
+  - TypeScript/JavaScript proficiency
+  - Experience with REST APIs
+  - Familiarity with SQLite or similar databases
+  - Git and npm knowledge
+version: 1.0.0
+last_updated: 2026-06-09
+---
+
 # Optimize MCP Server
 
 A systematic approach to optimizing Model Context Protocol (MCP) servers based on real-world production experience.
+
+## Quick Reference
+
+**TL;DR**: Transform your MCP server from prototype to production in 6 phases. Focus on data accuracy first, then performance, coverage, reliability, automation, and documentation. Expect 2-5 days for complete optimization.
+
+**The 6 Phases**:
+1. **Data Accuracy** (4-8h) - Replace estimates with real API data
+2. **Performance** (6-12h) - Add parallel processing and intelligent caching  
+3. **Coverage** (4-8h) - Expand data sets and categorization
+4. **Reliability** (4-8h) - Implement retry logic, rate limiting, error handling
+5. **Background Automation** (2-4h) - Auto-refresh and data cleanup
+6. **Documentation** (2-4h) - Update docs, version management, publishing
+
+**Quick Decision Guide**:
+- Slow responses? → Phase 2 (parallel processing + caching)
+- API rate limits? → Phase 4 (batch processing + delays)
+- Stale data? → Phase 5 (auto-refresh + reduce cache TTL)
+- Inaccurate results? → Phase 1 (replace estimates with real APIs)
+
+## Prerequisites
+
+Before starting optimization, ensure you have:
+
+**Technical Skills**:
+- TypeScript/JavaScript proficiency (async/await, Promises, error handling)
+- REST API experience (HTTP clients, status codes, rate limiting concepts)
+- Database basics (SQL queries, indexes, caching strategies)
+- Git workflow (branching, committing, pushing)
+
+**Tools Required**:
+- Node.js 16+ and npm/yarn
+- SQLite (or your database of choice)
+- Code editor with TypeScript support
+- API testing tool (Postman, curl, or similar)
+
+**Project Requirements**:
+- Existing MCP server codebase
+- Access to external APIs (npm, bundlephobia, etc.)
+- Test environment for validation
+
+**Knowledge Required**:
+- Your server's current architecture and bottlenecks
+- API rate limits and costs
+- User requirements and expected response times
 
 ## When to Use This Skill
 
@@ -13,7 +73,7 @@ Use this skill when:
 
 ## Optimization Checklist
 
-### Phase 1: Data Accuracy Analysis
+### Phase 1: Data Accuracy Analysis (4-8 hours)
 
 **Goal**: Ensure all data is accurate and not estimated
 
@@ -46,7 +106,7 @@ I should make it actionable and based on real patterns from our work.
    - Check that calculations make sense
    - Test edge cases (new packages, missing data)
 
-### Phase 2: Performance Optimization
+### Phase 2: Performance Optimization (6-12 hours)
 
 **Goal**: Make the server fast and efficient
 
@@ -78,7 +138,7 @@ I should make it actionable and based on real patterns from our work.
    - Cache at multiple layers (API cache, database cache)
    - Implement cache invalidation strategies
 
-### Phase 3: Coverage Expansion
+### Phase 3: Coverage Expansion (4-8 hours)
 
 **Goal**: Maximize usefulness with broad data coverage
 
@@ -97,7 +157,7 @@ I should make it actionable and based on real patterns from our work.
    - Check that categories are assigned correctly
    - Ensure no major gaps
 
-### Phase 4: Reliability Enhancement
+### Phase 4: Reliability Enhancement (4-8 hours)
 
 **Goal**: Make the server production-ready
 
@@ -133,7 +193,7 @@ I should make it actionable and based on real patterns from our work.
    - Don't fail completely on partial errors
    - Return useful results even in degraded mode
 
-### Phase 5: Background Automation
+### Phase 5: Background Automation (2-4 hours)
 
 **Goal**: Keep data fresh without user intervention
 
@@ -154,7 +214,7 @@ I should make it actionable and based on real patterns from our work.
    - Set appropriate retention periods
    - Clean up based on data type
 
-### Phase 6: Documentation & Publishing
+### Phase 6: Documentation & Publishing (2-4 hours)
 
 **Goal**: Make the server easy to use and discover
 
@@ -233,6 +293,48 @@ catch (err: any) {
 console.error(`Completed: ${successCount} succeeded, ${failCount} failed`);
 ```
 
+## Common Pitfalls
+
+### ❌ Pitfall 1: Over-Caching
+**Problem**: Setting cache TTL too high (e.g., 24 hours for trending data)  
+**Impact**: Users see stale data, trending packages from yesterday  
+**Solution**: Match cache TTL to data change frequency (30min for rankings, 1h for details)
+
+### ❌ Pitfall 2: No Rate Limiting
+**Problem**: Fetching 100 packages in parallel without delays  
+**Impact**: API returns 429 errors, server becomes unreliable  
+**Solution**: Batch processing (15 items/batch) + 500ms delays between batches
+
+### ❌ Pitfall 3: Serial Processing
+**Problem**: `for (item of items) { await fetch(item); }`  
+**Impact**: 100 items × 200ms = 20 seconds  
+**Solution**: `Promise.allSettled()` with batch size limits
+
+### ❌ Pitfall 4: Hardcoded Data
+**Problem**: `downloads = weeklyDownloads * 10` (estimated monthly)  
+**Impact**: Inaccurate data destroys user trust  
+**Solution**: Fetch real data from official APIs
+
+### ❌ Pitfall 5: No Retry Logic
+**Problem**: Single API call fails → entire operation fails  
+**Impact**: Brittle server, poor user experience  
+**Solution**: Exponential backoff retry (3 attempts, 1s → 2s → 4s)
+
+### ❌ Pitfall 6: Missing Error Statistics
+**Problem**: Logs show errors but no counts or categorization  
+**Impact**: Can't measure success rate or identify patterns  
+**Solution**: Track `successCount` and `failCount` by error type (404 vs network)
+
+### ❌ Pitfall 7: Ignoring Data Validation
+**Problem**: Assuming API always returns valid data  
+**Impact**: Null reference errors, corrupt database entries  
+**Solution**: Validate at system boundaries (API responses, user input)
+
+### ❌ Pitfall 8: Premature Optimization
+**Problem**: Adding complex caching before measuring bottlenecks  
+**Impact**: Wasted time on wrong problems  
+**Solution**: Profile first, optimize bottlenecks, measure improvements
+
 ## Real-World Example: npm-radar Optimizations
 
 From 15 packages to production-ready with 100+ packages:
@@ -255,17 +357,76 @@ From 15 packages to production-ready with 100+ packages:
 
 ## Troubleshooting
 
-**Problem**: API rate limiting (429 errors)
-**Solution**: Add batch processing with delays, implement caching
+### Issue 1: API Rate Limiting
 
-**Problem**: Data seems stale
-**Solution**: Reduce cache TTL, add force refresh parameter, implement background auto-refresh
+**Problem**: Server returns 429 errors or gets throttled by external APIs
 
-**Problem**: Slow performance
-**Solution**: Implement parallel processing, add caching layers
+**Symptoms**:
+- Frequent 429 (Too Many Requests) HTTP errors in logs
+- Tools fail intermittently with rate limit messages
+- Some requests succeed, others fail randomly
 
-**Problem**: Inaccurate data
-**Solution**: Check data sources, replace estimates with real API calls
+**Root Cause**: Making too many API requests in short time without delays or batching
+
+**Solution**:
+1. Implement batch processing (15 items per batch)
+2. Add delays between batches (500ms minimum)
+3. Add retry logic with exponential backoff
+4. Implement caching to reduce API calls
+5. Monitor API usage against rate limits
+
+### Issue 2: Stale Data
+
+**Problem**: Users see outdated package information or rankings
+
+**Symptoms**:
+- Yesterday's trending packages still showing today
+- Download counts don't match npm website
+- Recently published packages not appearing
+
+**Root Cause**: Cache TTL too high or no background refresh mechanism
+
+**Solution**:
+1. Reduce cache TTL (30min for rankings, 1h for details)
+2. Add `forceRefresh` parameter to tools
+3. Implement background auto-refresh every hour
+4. Add cache invalidation on data updates
+
+### Issue 3: Slow Performance
+
+**Problem**: Tools take too long to respond (>5 seconds)
+
+**Symptoms**:
+- User complaints about slow responses
+- Timeouts in Claude Desktop
+- High latency in tool execution logs
+
+**Root Cause**: Serial processing, missing caches, or inefficient queries
+
+**Solution**:
+1. Profile to identify bottlenecks (use `console.time()`)
+2. Implement parallel processing with `Promise.allSettled()`
+3. Add multi-layer caching (API + database)
+4. Optimize database queries with proper indexes
+5. Use batch processing for bulk operations
+
+### Issue 4: Inaccurate Data
+
+**Problem**: Data doesn't match official sources
+
+**Symptoms**:
+- Download counts off by orders of magnitude
+- Quality scores always 0.8
+- Missing or incorrect package metadata
+
+**Root Cause**: Hardcoded estimates or fake data instead of real API calls
+
+**Solution**:
+1. Identify all hardcoded/estimated values
+2. Replace with real API calls (npm registry, npm stats)
+3. Validate data against official sources
+4. Add data integrity checks at boundaries
+5. Test edge cases (new packages, missing data)
 
 ## Next Steps After Optimization
 
