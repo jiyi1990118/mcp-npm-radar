@@ -20,6 +20,7 @@ MCP server providing intelligent npm package discovery with powerful ranking, fi
 - 📉 **Download Statistics** - Track download trends and history
 - 🔷 **TypeScript Support** - Check type definitions availability
 - ⭐ **Quality Scoring** - Comprehensive package quality assessment
+- 📖 **README Viewer** - Get complete usage instructions and documentation
 - 💾 **Smart Cache** - 1-hour intelligent caching for optimal performance
 
 ## 🚀 Quick Start
@@ -69,6 +70,7 @@ Add to your Claude Desktop config file:
 | `get_download_history` | Get download statistics and trends | npm API | 1 hour |
 | `check_typescript_support` | Check TypeScript type definitions support | npm API | 1 hour |
 | `get_package_quality_score` | Get comprehensive quality assessment | npm API | 1 hour |
+| `get_package_readme` | Get README with usage instructions | npm API | 1 hour |
 
 ## 📖 Usage Examples
 
@@ -425,6 +427,30 @@ Claude will use: get_package_quality_score(package_name: "fastify")
 User: "Evaluate the quality of zod"
 Claude will use: get_package_quality_score(package_name: "zod")
 Returns: monthly downloads, last publish date, readme/license/repo status
+```
+
+### 1️⃣6️⃣ get_package_readme
+
+**Get complete README with usage instructions and API documentation**
+
+**Example 1: Get usage instructions**
+```
+User: "Tell me about axios package information and how to use it"
+Claude will use: get_package_readme(package_name: "axios")
+Returns: complete README with installation, usage examples, API docs
+```
+
+**Example 2: Learn package API**
+```
+User: "Show me the documentation for express"
+Claude will use: get_package_readme(package_name: "express")
+```
+
+**Example 3: Check configuration options**
+```
+User: "What are the configuration options for webpack?"
+Claude will use: get_package_readme(package_name: "webpack")
+Returns: README with all configuration details
 ```
 
 ## 🏗️ Architecture

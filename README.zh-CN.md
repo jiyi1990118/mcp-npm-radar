@@ -20,6 +20,7 @@
 - 📉 **下载统计** - 追踪下载趋势和历史
 - 🔷 **TypeScript 支持** - 检查类型定义可用性
 - ⭐ **质量评分** - 综合包质量评估
+- 📖 **README 查看器** - 获取完整使用说明和文档
 - 💾 **智能缓存** - 1小时智能缓存，优化性能
 
 ## 🚀 快速开始
@@ -69,6 +70,7 @@ npm install -g @npm_xiyuan/mcp-npm-radar
 | `get_download_history` | 获取下载统计和趋势 | npm API | 1小时 |
 | `check_typescript_support` | 检查 TypeScript 类型定义支持 | npm API | 1小时 |
 | `get_package_quality_score` | 获取综合质量评估 | npm API | 1小时 |
+| `get_package_readme` | 获取 README 使用说明 | npm API | 1小时 |
 
 
 ## 📖 使用示例
@@ -425,6 +427,30 @@ Claude 将使用：get_package_quality_score(package_name: "fastify")
 用户："评估 zod 的质量"
 Claude 将使用：get_package_quality_score(package_name: "zod")
 返回：月下载量、最后发布日期、readme/license/仓库状态
+```
+
+### 1️⃣6️⃣ get_package_readme
+
+**获取完整的 README，包含使用说明和 API 文档**
+
+**示例 1：获取使用说明**
+```
+用户："告诉我 axios 包的信息及具体用法"
+Claude 将使用：get_package_readme(package_name: "axios")
+返回：完整的 README，包含安装、使用示例、API 文档
+```
+
+**示例 2：学习包的 API**
+```
+用户："显示 express 的文档"
+Claude 将使用：get_package_readme(package_name: "express")
+```
+
+**示例 3：查看配置选项**
+```
+用户："webpack 有哪些配置选项？"
+Claude 将使用：get_package_readme(package_name: "webpack")
+返回：包含所有配置详情的 README
 ```
 
 ## 🏗️ 架构

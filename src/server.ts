@@ -12,6 +12,7 @@ import { getRelatedPackages } from './api/related.js';
 import { getDownloadHistory } from './api/stats.js';
 import { checkTypescriptSupport } from './api/typescript.js';
 import { getPackageQualityScore } from './api/quality.js';
+import { getPackageReadme } from './api/readme.js';
 
 const server = new Server(
   {
@@ -270,6 +271,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['package_name'],
         },
       },
+      {
+        name: 'get_package_readme',
+        description: 'Get package README with usage instructions and documentation',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            package_name: {
+              type: 'string',
+              description: 'Package name',
+            },
+          },
+          required: ['package_name'],
+        },
+      },
     ],
   };
 });
@@ -516,6 +531,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify({ success: true, quality }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_package_readme': {
+        const { package_name } = args as { package_name: string };
+        const readme = await getPackageReadme(package_name);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ success: true, readme }, null, 2),
             },
           ],
         };

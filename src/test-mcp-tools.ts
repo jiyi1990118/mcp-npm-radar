@@ -8,6 +8,7 @@ import { getRelatedPackages } from './api/related.js';
 import { getDownloadHistory } from './api/stats.js';
 import { checkTypescriptSupport } from './api/typescript.js';
 import { getPackageQualityScore } from './api/quality.js';
+import { getPackageReadme } from './api/readme.js';
 import { getTrendingPackages, getTopPackages, getWeeklyHot, getPackagesByCategory, getPackagesByDateRange } from './db/queries.js';
 
 async function testAllTools() {
@@ -180,7 +181,22 @@ async function testAllTools() {
     failed++;
   }
 
-  console.log(`\n📊 Results: ${passed} passed, ${failed} failed out of 15 tools`);
+  // Test 16: get_package_readme
+  console.log('1️⃣6️⃣ get_package_readme');
+  try {
+    const readme = await getPackageReadme('axios');
+    if (readme.hasReadme && readme.readme.length > 0) {
+      console.log('   ✅ OK\n');
+      passed++;
+    } else {
+      throw new Error('No README content');
+    }
+  } catch (e) {
+    console.log('   ❌ FAILED:', (e as Error).message, '\n');
+    failed++;
+  }
+
+  console.log(`\n📊 Results: ${passed} passed, ${failed} failed out of 16 tools`);
   if (failed === 0) {
     console.log('✅ All MCP tools are working correctly!');
   }
