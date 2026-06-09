@@ -28,8 +28,19 @@ export function savePackage(pkg: any) {
   );
 }
 
-export async function getTopPackages(limit: number = 50) {
-  if (!isCacheValid('top_packages')) {
+export function saveSnapshot(packageName: string, downloads: number, weeklyDownloads: number) {
+  const db = getDatabase();
+  const today = new Date().toISOString().split('T')[0];
+
+  db.prepare(`
+    INSERT OR REPLACE INTO trending_snapshots
+    (package_name, downloads, weekly_downloads, snapshot_date)
+    VALUES (?, ?, ?, ?)
+  `).run(packageName, downloads, weeklyDownloads, today);
+}
+
+export async function getTopPackages(limit: number = 50, forceRefresh: boolean = false) {
+  if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();
   }
 
@@ -41,8 +52,8 @@ export async function getTopPackages(limit: number = 50) {
   `).all(limit);
 }
 
-export async function getPackagesByCategory(category: string, limit: number = 50) {
-  if (!isCacheValid('top_packages')) {
+export async function getPackagesByCategory(category: string, limit: number = 50, forceRefresh: boolean = false) {
+  if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();
   }
 
@@ -55,12 +66,26 @@ export async function getPackagesByCategory(category: string, limit: number = 50
   `).all(category, limit);
 }
 
-export async function getTrendingPackages(limit: number = 20) {
-  if (!isCacheValid('top_packages')) {
+export async function getTrendingPackages(limit: number = 20, forceRefresh: boolean = false) {
+  if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();
   }
 
   const db = getDatabase();
+
+  // Check if snapshots exist
+  const snapshotCount = db.prepare(`SELECT COUNT(*) as count FROM trending_snapshots`).get() as { count: number };
+
+  if (snapshotCount.count === 0) {
+    // Cold start: no historical data, use weekly downloads as proxy
+    return db.prepare(`
+      SELECT * FROM packages
+      ORDER BY weekly_downloads DESC
+      LIMIT ?
+    `).all(limit);
+  }
+
+  // Normal case: calculate growth from snapshots
   return db.prepare(`
     SELECT
       p.*,
@@ -73,8 +98,8 @@ export async function getTrendingPackages(limit: number = 20) {
   `).all(limit);
 }
 
-export async function getPackagesByDateRange(startDate: number, endDate: number, limit: number = 50) {
-  if (!isCacheValid('top_packages')) {
+export async function getPackagesByDateRange(startDate: number, endDate: number, limit: number = 50, forceRefresh: boolean = false) {
+  if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();
   }
 
@@ -87,8 +112,8 @@ export async function getPackagesByDateRange(startDate: number, endDate: number,
   `).all(startDate, endDate, limit);
 }
 
-export async function getWeeklyHot(limit: number = 50) {
-  if (!isCacheValid('top_packages')) {
+export async function getWeeklyHot(limit: number = 50, forceRefresh: boolean = false) {
+  if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();
   }
 
@@ -100,12 +125,27 @@ export async function getWeeklyHot(limit: number = 50) {
   `).all(limit);
 }
 
-export function saveSnapshot(packageName: string, downloads: number, weeklyDownloads: number = 0) {
+export function cleanupOldData() {
   const db = getDatabase();
-  const date = new Date().toISOString().split('T')[0];
+  const now = Date.now();
 
-  db.prepare(`
-    INSERT OR IGNORE INTO trending_snapshots (package_name, downloads, weekly_downloads, snapshot_date)
-    VALUES (?, ?, ?, ?)
-  `).run(packageName, downloads, weeklyDownloads, date);
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  const sevenDaysAgo = now - SEVEN_DAYS;
+  const thirtyDaysAgo = now - THIRTY_DAYS;
+
+  const packagesDeleted = db.prepare(`
+    DELETE FROM packages
+    WHERE updated_at < ?
+  `).run(sevenDaysAgo).changes;
+
+  const snapshotsDeleted = db.prepare(`
+    DELETE FROM trending_snapshots
+    WHERE snapshot_date < date('now', '-30 days')
+  `).run().changes;
+
+  console.error(`Cleaned up ${packagesDeleted} old packages and ${snapshotsDeleted} old snapshots`);
+
+  return { packagesDeleted, snapshotsDeleted };
 }

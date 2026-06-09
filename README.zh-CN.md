@@ -5,23 +5,34 @@
 
 [English](./README.md) | **简体中文**
 
-> 🚀 为 Claude Desktop 提供实时 npm 包搜索、排名和趋势分析
+> 🚀 为 Claude Desktop 提供实时 npm 包智能分析，具备高级搜索、排名和趋势分析功能
 
-提供智能 npm 包发现的 MCP 服务器，具有强大的排名、过滤和趋势分析功能。
+生产就绪的 MCP 服务器，提供智能 npm 包发现，具有强大的排名、过滤和趋势分析能力。经过性能和可靠性优化，支持 100+ 包、20+ 分类和全面的错误处理。
 
 ## ✨ 功能特性
 
-- 🔍 **智能搜索** - 基于关键词的包搜索，带质量评分
-- 📊 **排行榜** - 发现下载量最高的包
-- 🔥 **趋势分析** - 追踪基于增长的趋势包
-- 📈 **周热榜** - 查找周下载量高的热门包
-- 🏷️ **分类筛选** - 按分类浏览包
-- 📅 **日期范围筛选** - 按发布日期查找包
-- 📉 **下载统计** - 追踪下载趋势和历史
-- 🔷 **TypeScript 支持** - 检查类型定义可用性
-- ⭐ **质量评分** - 综合包质量评估
-- 📖 **README 查看器** - 获取完整使用说明和文档
-- 💾 **智能缓存** - 1小时智能缓存，优化性能
+### 核心智能
+- 🔍 **智能搜索** - 基于关键词的包搜索，带实时质量评分
+- 📊 **排行榜** - 发现下载量最高的包（已索引 100+ 个）
+- 🔥 **趋势分析** - 基于历史快照追踪增长趋势
+- 📈 **周热榜** - 实时周下载量追踪
+- 🏷️ **20+ 分类** - 按框架、构建工具、测试、UI库、ORM 等分类浏览
+- 📅 **日期范围筛选** - 精确按发布日期过滤包
+
+### 高级功能
+- 📉 **下载统计** - 带重试保护的下载趋势追踪
+- 🔷 **TypeScript 支持** - 全面的类型定义检查
+- ⭐ **质量评分** - 多维度质量评估（流行度 + 维护 + 质量）
+- 📖 **README 查看器** - 完整使用说明和文档
+- 🔒 **安全检查** - CVE 追踪的漏洞扫描
+- 📦 **打包大小分析** - 来自 bundlephobia 的压缩前后大小
+
+### 性能与可靠性
+- 💾 **智能缓存** - 30 分钟数据库缓存 + 1 小时 API 缓存
+- 🔄 **自动刷新** - 每小时后台数据更新
+- 🛡️ **速率限制保护** - 批量处理 + 指数退避重试
+- 📊 **错误统计** - 详细的成功/失败追踪
+- ⚡ **并行处理** - 控制并发的速度优化
 
 ## 🚀 快速开始
 
@@ -57,418 +68,69 @@ npm install -g @npm_xiyuan/mcp-npm-radar
 |------|------|---------|------|
 | `search_packages` | 按关键词搜索 npm 包 | npm API | 1小时 |
 | `get_package_detail` | 获取包的详细信息 | npm API | 1小时 |
-| `get_trending_packages` | 基于增长的趋势包 | 数据库 + API | 1小时 |
-| `get_top_packages` | 按总下载量排名的顶级包 | 数据库 + API | 1小时 |
-| `get_weekly_hot` | 按周下载量的热门包 | 数据库 + API | 1小时 |
-| `get_packages_by_category` | 按分类过滤包 | 数据库 + API | 1小时 |
-| `get_packages_by_date_range` | 按发布日期范围过滤 | 数据库 + API | 1小时 |
-| `compare_packages` | 并排比较多个包 | npm API | 1小时 |
-| `get_bundle_size` | 获取包的打包大小（压缩后） | bundlephobia | 1小时 |
-| `get_package_vulnerabilities` | 检查已知安全漏洞 | npm API | 1小时 |
+| `get_trending_packages` | 基于增长的趋势包 | 数据库 + API | 30分钟 |
+| `get_top_packages` | 按月下载量排名的顶级包 | 数据库 + API | 30分钟 |
+| `get_weekly_hot` | 按周下载量的热门包 | 数据库 + API | 30分钟 |
+| `get_packages_by_category` | 按 20+ 分类过滤 | 数据库 + API | 30分钟 |
+| `get_packages_by_date_range` | 按发布日期范围过滤 | 数据库 + API | 30分钟 |
+| `compare_packages` | 比较多个包 | npm API | 1小时 |
+| `get_bundle_size` | 包打包大小分析 | bundlephobia | 1小时 |
+| `get_package_vulnerabilities` | 安全漏洞检查 | npm API | 1小时 |
 | `find_alternatives` | 查找替代包 | npm API | 1小时 |
-| `get_related_packages` | 按关键词获取相关包 | npm API | 1小时 |
-| `get_download_history` | 获取下载统计和趋势 | npm API | 1小时 |
-| `check_typescript_support` | 检查 TypeScript 类型定义支持 | npm API | 1小时 |
-| `get_package_quality_score` | 获取综合质量评估 | npm API | 1小时 |
-| `get_package_readme` | 获取 README 使用说明 | npm API | 1小时 |
-
-
-## 📖 使用示例
-
-### 1️⃣ search_packages
-
-**按关键词搜索包，带质量评分**
-
-**示例 1：搜索 React 相关包**
-```
-用户："搜索 React UI 组件库"
-Claude 将使用：search_packages(keyword: "react ui components", limit: 20)
-```
-
-**示例 2：查找测试框架**
-```
-用户："有哪些流行的测试框架？"
-Claude 将使用：search_packages(keyword: "testing framework", limit: 10)
-```
-
-**示例 3：搜索特定功能**
-```
-用户："我需要一个图片压缩的包"
-Claude 将使用：search_packages(keyword: "image compression", limit: 15)
-```
-
-### 2️⃣ get_package_detail
-
-**获取特定包的详细信息**
-
-**示例 1：查看包详情**
-```
-用户："告诉我 axios 包的信息"
-Claude 将使用：get_package_detail(package_name: "axios")
-返回：版本、描述、作者、许可证、仓库、依赖等
-```
-
-**示例 2：比较包版本**
-```
-用户："TypeScript 的最新版本是什么？"
-Claude 将使用：get_package_detail(package_name: "typescript")
-```
-
-**示例 3：检查依赖**
-```
-用户："Next.js 有哪些依赖？"
-Claude 将使用：get_package_detail(package_name: "next")
-```
-
-### 3️⃣ get_trending_packages
-
-**发现高增长率的包**
-
-**示例 1：查找趋势包**
-```
-用户："现在有哪些 npm 包正在流行？"
-Claude 将使用：get_trending_packages(limit: 20)
-```
-
-**示例 2：发现新流行工具**
-```
-用户："显示增长最快的 10 个包"
-Claude 将使用：get_trending_packages(limit: 10)
-```
-
-**示例 3：追踪生态趋势**
-```
-用户："JavaScript 生态中什么在变得流行？"
-Claude 将使用：get_trending_packages(limit: 30)
-```
-
-### 4️⃣ get_top_packages
-
-**查找总下载量最高的包**
-
-**示例 1：顶级包列表**
-```
-用户："最受欢迎的 npm 包有哪些？"
-Claude 将使用：get_top_packages(limit: 50)
-```
-
-**示例 2：行业标准**
-```
-用户："显示下载量前 20 的包"
-Claude 将使用：get_top_packages(limit: 20)
-```
-
-**示例 3：生态概览**
-```
-用户："大家都在用什么包？"
-Claude 将使用：get_top_packages(limit: 30)
-```
-
-### 5️⃣ get_weekly_hot
-
-**查找最近下载活跃度高的包**
-
-**示例 1：本周热门包**
-```
-用户："本周有哪些热门包？"
-Claude 将使用：get_weekly_hot(limit: 50)
-```
-
-**示例 2：最近流行度**
-```
-用户："显示最近下载量高的包"
-Claude 将使用：get_weekly_hot(limit: 30)
-```
-
-**示例 3：周度趋势**
-```
-用户："最近 7 天什么包比较热门？"
-Claude 将使用：get_weekly_hot(limit: 20)
-```
-
-### 6️⃣ get_packages_by_category
-
-**按分类浏览包**
-
-**示例 1：Web 框架**
-```
-用户："显示 Web 框架包"
-Claude 将使用：get_packages_by_category(category: "web-framework", limit: 50)
-```
-
-**示例 2：CLI 工具**
-```
-用户："有哪些流行的命令行工具？"
-Claude 将使用：get_packages_by_category(category: "cli-tool", limit: 30)
-```
-
-**示例 3：数据库包**
-```
-用户："查找数据库相关的包"
-Claude 将使用：get_packages_by_category(category: "database", limit: 40)
-```
-
-### 7️⃣ get_packages_by_date_range
-
-**查找特定日期范围内发布的包**
-
-**示例 1：最近的包**
-```
-用户："显示 2024 年发布的包"
-Claude 将使用：get_packages_by_date_range(
-  start_date: "2024-01-01",
-  end_date: "2024-12-31",
-  limit: 50
-)
-```
-
-**示例 2：历史包**
-```
-用户："2020 到 2022 年间发布了哪些包？"
-Claude 将使用：get_packages_by_date_range(
-  start_date: "2020-01-01",
-  end_date: "2022-12-31",
-  limit: 100
-)
-```
-
-**示例 3：年度对比**
-```
-用户："查找 2023 年的包"
-Claude 将使用：get_packages_by_date_range(
-  start_date: "2023-01-01",
-  end_date: "2023-12-31",
-  limit: 50
-)
-```
-
-## 🏗️ 架构
-
-### 8️⃣ compare_packages
-
-**并排比较多个包**
-
-**示例 1：比较时间库**
-```
-用户："比较 moment、dayjs 和 date-fns"
-Claude 将使用：compare_packages(packages: ["moment", "dayjs", "date-fns"])
-返回：下载量、大小、依赖数等多维度对比
-```
-
-**示例 2：HTTP 客户端对比**
-```
-用户："axios、node-fetch 和 got 哪个更好？"
-Claude 将使用：compare_packages(packages: ["axios", "node-fetch", "got"])
-```
-
-**示例 3：测试框架对比**
-```
-用户："比较 jest 和 mocha"
-Claude 将使用：compare_packages(packages: ["jest", "mocha"])
-```
-
-### 9️⃣ get_bundle_size
-
-**获取包的打包大小（压缩前后）**
-
-**示例 1：检查库大小**
-```
-用户："lodash 有多大？"
-Claude 将使用：get_bundle_size(package_name: "lodash")
-返回：size: 72KB, gzip: 25KB
-```
-
-**示例 2：特定版本大小**
-```
-用户："React 18 的大小是多少？"
-Claude 将使用：get_bundle_size(package_name: "react", version: "18.0.0")
-```
-
-**示例 3：优化打包体积**
-```
-用户："添加 moment 会让我的包体积增加很多吗？"
-Claude 将使用：get_bundle_size(package_name: "moment")
-```
-
-### 🔟 get_package_vulnerabilities
-
-**检查已知安全漏洞**
-
-**示例 1：安全审计**
-```
-用户："axios 有安全问题吗？"
-Claude 将使用：get_package_vulnerabilities(package_name: "axios")
-返回：CVE 列表、严重程度、修复版本
-```
-
-**示例 2：特定版本检查**
-```
-用户："lodash 4.17.20 安全吗？"
-Claude 将使用：get_package_vulnerabilities(package_name: "lodash", version: "4.17.20")
-```
-
-**示例 3：安装前检查**
-```
-用户："检查 express 是否有漏洞"
-Claude 将使用：get_package_vulnerabilities(package_name: "express")
-```
-
-### 1️⃣1️⃣ find_alternatives
-
-**查找功能相似的替代包**
-
-**示例 1：更轻量的替代品**
-```
-用户："有没有比 moment 更轻的时间库？"
-Claude 将使用：find_alternatives(package_name: "moment")
-返回：dayjs、date-fns、luxon
-```
-
-**示例 2：现代替代品**
-```
-用户："request 包有什么替代品？"
-Claude 将使用：find_alternatives(package_name: "request")
-```
-
-**示例 3：性能更好的替代品**
-```
-用户："找一个比 lodash 更快的替代品"
-Claude 将使用：find_alternatives(package_name: "lodash")
-```
-
-### 1️⃣2️⃣ get_related_packages
-
-**获取关键词和生态系统相关的包**
-
-**示例 1：React 生态**
-```
-用户："和 React 配合使用的包有哪些？"
-Claude 将使用：get_related_packages(package_name: "react", limit: 10)
-返回：react-router、redux、styled-components 等
-```
-
-**示例 2：构建工具**
-```
-用户："webpack 常用的配套包有哪些？"
-Claude 将使用：get_related_packages(package_name: "webpack")
-```
-
-**示例 3：测试生态**
-```
-用户："显示和 jest 相关的包"
-Claude 将使用：get_related_packages(package_name: "jest", limit: 15)
-```
-
-### 1️⃣3️⃣ get_download_history
-
-**获取下载统计和趋势分析**
-
-**示例 1：月度下载趋势**
-```
-用户："axios 每月有多少下载量？"
-Claude 将使用：get_download_history(package_name: "axios", period: "last-month")
-返回：总下载量、日均下载量、趋势数据
-```
-
-**示例 2：周增长追踪**
-```
-用户："显示 vite 本周的下载趋势"
-Claude 将使用：get_download_history(package_name: "vite", period: "last-week")
-```
-
-**示例 3：年度对比**
-```
-用户："react 的年度下载趋势是什么？"
-Claude 将使用：get_download_history(package_name: "react", period: "last-year")
-```
-
-### 1️⃣4️⃣ check_typescript_support
-
-**检查包是否有 TypeScript 类型定义**
-
-**示例 1：内置类型检查**
-```
-用户："axios 支持 TypeScript 吗？"
-Claude 将使用：check_typescript_support(package_name: "axios")
-返回：内置类型状态、@types 包信息
-```
-
-**示例 2：查找类型包**
-```
-用户："如何给 express 添加 TypeScript 支持？"
-Claude 将使用：check_typescript_support(package_name: "express")
-```
-
-**示例 3：迁移规划**
-```
-用户："检查 lodash 的 TypeScript 支持"
-Claude 将使用：check_typescript_support(package_name: "lodash")
-```
-
-### 1️⃣5️⃣ get_package_quality_score
-
-**获取综合质量评估及详细指标**
-
-**示例 1：整体质量检查**
-```
-用户："axios 是个高质量的包吗？"
-Claude 将使用：get_package_quality_score(package_name: "axios")
-返回：总体评分、流行度/维护/质量分数、评级
-```
-
-**示例 2：包对比**
-```
-用户："fastify 的质量评分是多少？"
-Claude 将使用：get_package_quality_score(package_name: "fastify")
-```
-
-**示例 3：采用前评估**
-```
-用户："评估 zod 的质量"
-Claude 将使用：get_package_quality_score(package_name: "zod")
-返回：月下载量、最后发布日期、readme/license/仓库状态
-```
-
-### 1️⃣6️⃣ get_package_readme
-
-**获取完整的 README，包含使用说明和 API 文档**
-
-**示例 1：获取使用说明**
-```
-用户："告诉我 axios 包的信息及具体用法"
-Claude 将使用：get_package_readme(package_name: "axios")
-返回：完整的 README，包含安装、使用示例、API 文档
-```
-
-**示例 2：学习包的 API**
-```
-用户："显示 express 的文档"
-Claude 将使用：get_package_readme(package_name: "express")
-```
-
-**示例 3：查看配置选项**
-```
-用户："webpack 有哪些配置选项？"
-Claude 将使用：get_package_readme(package_name: "webpack")
-返回：包含所有配置详情的 README
+| `get_related_packages` | 获取相关包 | npm API | 1小时 |
+| `get_download_history` | 下载统计与趋势 | npm API | 1小时 |
+| `check_typescript_support` | TypeScript 定义检查 | npm API | 1小时 |
+| `get_package_quality_score` | 综合质量评分 | npm API | 1小时 |
+| `get_package_readme` | README 文档 | npm API | 1小时 |
+
+### 强制刷新
+
+所有数据库支持的工具都支持 `forceRefresh: true` 参数来绕过缓存获取实时数据：
+
+```json
+get_trending_packages(limit: 20, forceRefresh: true)
+get_top_packages(limit: 50, forceRefresh: true)
 ```
 
 ## 🏗️ 架构
 
 ### 混合数据架构
 
-此 MCP 服务器使用**混合架构**，结合实时 API 调用和智能缓存：
+生产优化的混合架构，结合实时 API 调用和智能缓存：
 
-- **实时数据**：`search_packages` 和 `get_package_detail` 从 npm 注册表获取最新数据
-- **缓存数据**：排名和过滤工具使用本地数据库，带 1 小时缓存
-- **自动刷新**：缓存过期（>1小时）时自动从 npm API 刷新数据
-- **智能存储**：数据库存储在 `~/.npm-radar/`（用户主目录）
+- **实时数据**：`search_packages` 和 `get_package_detail` 始终从 npm 注册表获取最新数据
+- **智能缓存**：排名和过滤工具使用本地数据库，30 分钟缓存提升性能
+- **后台刷新**：每小时自动数据更新保持缓存新鲜
+- **速率限制**：批量处理（15 个包/批次）+ 500ms 延迟防止 API 限流
+- **错误处理**：指数退避重试机制（3 次重试，1s → 2s → 4s 延迟）
+- **优雅降级**：趋势分析在历史数据不可用时使用周下载量作为备选
 
-### 缓存策略
+### 性能优化
 
-- **TTL**：所有缓存数据的有效期为 1 小时
-- **自动更新**：缓存过期时自动触发从 npm API 刷新
-- **性能优化**：快速响应排名和趋势，无 API 速率限制
+1. **并行处理**：100+ 包以批次方式获取，控制并发
+2. **请求限流**：下载统计 API 调用间隔 200ms
+3. **智能重试**：指数退避 + 错误类型检测（404 vs 网络错误）
+4. **分类推断**：20+ 分类的智能关键词匹配
+5. **数据清理**：自动删除过期数据（包保留 7 天，快照保留 30 天）
+
+### 数据覆盖
+
+- **117 个热门包**，涵盖多个分类：
+  - 框架：React、Vue、Angular、Svelte、Next.js、Nuxt 等
+  - 构建工具：Webpack、Vite、Rollup、esbuild、Turbopack
+  - 测试：Jest、Vitest、Cypress、Playwright、Mocha
+  - UI 库：Tailwind、MUI、Ant Design、Chakra UI
+  - 状态管理：Redux、Zustand、Pinia、Jotai
+  - ORM：Prisma、TypeORM、Drizzle、Mongoose
+  - 以及更多...
+
+## 📊 质量与可靠性
+
+- ✅ **准确数据**：真实的月度和周度下载量（非估算）
+- ✅ **真实质量分数**：从 npm 搜索 API 获取（非硬编码）
+- ✅ **全面分类**：20+ 分类 vs 之前版本的 3 个
+- ✅ **生产就绪**：广泛的错误处理 + 成功/失败统计
+- ✅ **速率限制保护**：内置 API 限流防护
 
 ## 📖 开发
 
@@ -495,6 +157,38 @@ npm test
 - **数据库位置**：`~/.npm-radar/npmradar.db`
 - **自定义路径**：设置 `SQLITE_DB_PATH` 环境变量
 - **自动初始化**：首次使用时自动创建数据库和目录
+- **索引优化**：在 downloads、category、created_at 和 snapshot_date 上建立索引
+
+## 🆕 v1.2.0 新特性
+
+### 性能改进
+- 🚀 索引 100+ 个包（从 15 个提升）
+- ⚡ 并行处理使数据刷新速度提升 97%
+- 🛡️ 批量处理的速率限制保护
+- 🔄 每小时后台自动刷新
+
+### 数据准确性
+- ✅ 真实的月度/周度下载数据（非估算）
+- ✅ 从 npm API 获取实时质量分数
+- ✅ 带历史快照的准确趋势计算
+
+### 增强分类
+- 📁 20+ 分类（从 3 个提升）：
+  - web-framework、meta-framework、backend-framework
+  - build-tool、compiler、bundler
+  - testing、e2e-testing
+  - css-framework、ui-library、css-in-js
+  - state-management、database、orm
+  - http-client、graphql
+  - cli-tool、node-utility
+  - linting、formatting
+  - utility、date-time、validation、types
+
+### 可靠性
+- 🔁 指数退避重试机制
+- 📊 错误统计追踪（NOT_FOUND vs NETWORK_ERROR）
+- 🧹 自动数据清理（7 天包保留，30 天快照）
+- 🆘 趋势冷启动支持 + 备选策略
 
 ## 📄 许可证
 

@@ -13,6 +13,7 @@ import { getDownloadHistory } from './api/stats.js';
 import { checkTypescriptSupport } from './api/typescript.js';
 import { getPackageQualityScore } from './api/quality.js';
 import { getPackageReadme } from './api/readme.js';
+import { refreshTopPackages } from './utils/data-refresher.js';
 
 const server = new Server(
   {
@@ -72,6 +73,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'number',
               description: 'Maximum results (default: 20)',
             },
+            forceRefresh: {
+              type: 'boolean',
+              description: 'Force refresh data from npm API, bypassing cache (default: false)',
+            },
           },
         },
       },
@@ -85,6 +90,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'number',
               description: 'Maximum results (default: 50)',
             },
+            forceRefresh: {
+              type: 'boolean',
+              description: 'Force refresh data from npm API, bypassing cache (default: false)',
+            },
           },
         },
       },
@@ -97,6 +106,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             limit: {
               type: 'number',
               description: 'Maximum results (default: 50)',
+            },
+            forceRefresh: {
+              type: 'boolean',
+              description: 'Force refresh data from npm API, bypassing cache (default: false)',
             },
           },
         },
@@ -114,6 +127,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             limit: {
               type: 'number',
               description: 'Maximum results (default: 50)',
+            },
+            forceRefresh: {
+              type: 'boolean',
+              description: 'Force refresh data from npm API, bypassing cache (default: false)',
             },
           },
           required: ['category'],
@@ -136,6 +153,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             limit: {
               type: 'number',
               description: 'Maximum results (default: 50)',
+            },
+            forceRefresh: {
+              type: 'boolean',
+              description: 'Force refresh data from npm API, bypassing cache (default: false)',
             },
           },
           required: ['start_date', 'end_date'],
@@ -353,8 +374,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_trending_packages': {
-        const { limit = 20 } = args as { limit?: number };
-        const trending = await getTrendingPackages(limit);
+        const { limit = 20, forceRefresh = false } = args as { limit?: number; forceRefresh?: boolean };
+        const trending = await getTrendingPackages(limit, forceRefresh);
 
         return {
           content: [
@@ -367,8 +388,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_top_packages': {
-        const { limit = 50 } = args as { limit?: number };
-        const top = await getTopPackages(limit);
+        const { limit = 50, forceRefresh = false } = args as { limit?: number; forceRefresh?: boolean };
+        const top = await getTopPackages(limit, forceRefresh);
 
         return {
           content: [
@@ -381,8 +402,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_weekly_hot': {
-        const { limit = 50 } = args as { limit?: number };
-        const hot = await getWeeklyHot(limit);
+        const { limit = 50, forceRefresh = false } = args as { limit?: number; forceRefresh?: boolean };
+        const hot = await getWeeklyHot(limit, forceRefresh);
 
         return {
           content: [
@@ -395,8 +416,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_packages_by_category': {
-        const { category, limit = 50 } = args as { category: string; limit?: number };
-        const packages = await getPackagesByCategory(category, limit);
+        const { category, limit = 50, forceRefresh = false } = args as { category: string; limit?: number; forceRefresh?: boolean };
+        const packages = await getPackagesByCategory(category, limit, forceRefresh);
 
         return {
           content: [
@@ -409,10 +430,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_packages_by_date_range': {
-        const { start_date, end_date, limit = 50 } = args as { start_date: string; end_date: string; limit?: number };
+        const { start_date, end_date, limit = 50, forceRefresh = false } = args as { start_date: string; end_date: string; limit?: number; forceRefresh?: boolean };
         const startTime = new Date(start_date).getTime();
         const endTime = new Date(end_date).getTime();
-        const packages = await getPackagesByDateRange(startTime, endTime, limit);
+        const packages = await getPackagesByDateRange(startTime, endTime, limit, forceRefresh);
 
         return {
           content: [
@@ -573,6 +594,19 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('npm-radar MCP server running on stdio');
+
+  // Background auto-refresh every hour
+  const REFRESH_INTERVAL = 60 * 60 * 1000; // 1 hour
+  setInterval(() => {
+    refreshTopPackages().catch((err) => {
+      console.error('Background refresh failed:', err);
+    });
+  }, REFRESH_INTERVAL);
+
+  // Initial refresh to prewarm cache (non-blocking)
+  refreshTopPackages().catch((err) => {
+    console.error('Initial refresh failed:', err);
+  });
 }
 
 main().catch((error) => {

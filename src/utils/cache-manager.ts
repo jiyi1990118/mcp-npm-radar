@@ -1,4 +1,4 @@
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 interface CacheEntry {
   lastUpdate: number;
