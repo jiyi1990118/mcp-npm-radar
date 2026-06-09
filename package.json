@@ -1,6 +1,6 @@
 {
   "name": "@npm_xiyuan/mcp-npm-radar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "🚀 Real-time npm package intelligence MCP server - Search, analyze, compare packages, security audit, smart recommendations",
   "main": "dist/server.js",
   "bin": {
