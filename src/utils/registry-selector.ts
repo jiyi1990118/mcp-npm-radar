@@ -7,34 +7,61 @@ export const NPM_REGISTRIES = [
   { name: 'huawei', url: 'https://mirrors.huaweicloud.com/repository/npm' },
 ];
 
+const PROBE_PATH = '/-/ping';
+
+export interface RegistryStatus {
+  name: string;
+  url: string;
+  latency: number;
+  ok: boolean;
+}
+
 let selectedRegistry: string | null = null;
 let lastCheckTime: number = 0;
+let lastStatuses: RegistryStatus[] = [];
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
-async function checkRegistry(url: string, timeout: number = 3000): Promise<number> {
+async function probeRegistry(url: string, timeout: number = 3000): Promise<number> {
   const start = Date.now();
   try {
-    await axios.get(`${url}/axios`, { timeout });
+    await axios.get(`${url}${PROBE_PATH}`, { timeout, maxRedirects: 3 });
     return Date.now() - start;
   } catch {
-    return Infinity;
+    return -1;
   }
+}
+
+export async function checkAllRegistries(): Promise<RegistryStatus[]> {
+  const results = await Promise.all(
+    NPM_REGISTRIES.map(async (registry) => {
+      const latency = await probeRegistry(registry.url);
+      return {
+        name: registry.name,
+        url: registry.url,
+        latency: latency < 0 ? Infinity : latency,
+        ok: latency >= 0,
+      };
+    })
+  );
+  lastStatuses = results;
+  return results;
+}
+
+export function getLastRegistryStatuses(): RegistryStatus[] {
+  return lastStatuses;
 }
 
 export async function selectFastestRegistry(): Promise<string> {
   console.error('Checking npm registries...');
 
-  const results = await Promise.all(
-    NPM_REGISTRIES.map(async (registry) => ({
-      url: registry.url,
-      name: registry.name,
-      latency: await checkRegistry(registry.url),
-    }))
-  );
+  const results = await checkAllRegistries();
 
   const fastest = results
-    .filter(r => r.latency < Infinity)
+    .filter((r) => r.ok)
     .sort((a, b) => a.latency - b.latency)[0];
+
+  const summary = results.map((r) => `${r.name}=${r.ok ? r.latency + 'ms' : 'down'}`).join(', ');
+  console.error(`Registry probe: ${summary}`);
 
   if (fastest) {
     selectedRegistry = fastest.url;
@@ -45,7 +72,7 @@ export async function selectFastestRegistry(): Promise<string> {
 
   selectedRegistry = NPM_REGISTRIES[0].url;
   lastCheckTime = Date.now();
-  console.error('Using default npm registry');
+  console.error(`All registries unreachable, falling back to ${NPM_REGISTRIES[0].name}`);
   return selectedRegistry;
 }
 

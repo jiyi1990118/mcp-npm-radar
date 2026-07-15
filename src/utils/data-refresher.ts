@@ -1,22 +1,9 @@
 import axios from 'axios';
 import { getSelectedRegistry } from './registry-selector.js';
+import { retryWithBackoff } from './retry.js';
 import { savePackage, saveSnapshot, cleanupOldData } from '../db/queries.js';
 import { setCacheTimestamp } from './cache-manager.js';
-import { searchPackages } from '../api/npm.js';
-
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 1000
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries === 0) throw error;
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return retryWithBackoff(fn, retries - 1, delay * 2);
-  }
-}
+import { getNpmScores } from '../api/quality.js';
 
 const POPULAR_PACKAGES = [
   // Frameworks & Libraries
@@ -71,9 +58,25 @@ const POPULAR_PACKAGES = [
   'vue-router', 'vueuse',
 ];
 
-export async function refreshTopPackages() {
+export interface RefreshResult {
+  success: number;
+  failed: number;
+  total: number;
+  error?: string;
+}
+
+export async function refreshTopPackages(): Promise<RefreshResult> {
   console.error('Refreshing top packages data...');
-  const registry = await getSelectedRegistry();
+
+  let registry: string;
+  try {
+    registry = await getSelectedRegistry();
+  } catch (err: any) {
+    const msg = `Registry selection failed: ${err?.message || err}`;
+    console.error(`[REFRESH_ABORTED] ${msg}`);
+    setCacheTimestamp('top_packages');
+    return { success: 0, failed: 0, total: POPULAR_PACKAGES.length, error: msg };
+  }
 
   let successCount = 0;
   let failCount = 0;
@@ -94,7 +97,7 @@ export async function refreshTopPackages() {
           const latest = data['dist-tags']?.latest;
           const [downloads, scores] = await Promise.all([
             getDownloads(pkgName),
-            getQualityScores(pkgName),
+            getNpmScores(pkgName),
           ]);
 
           savePackage({
@@ -104,9 +107,9 @@ export async function refreshTopPackages() {
             author: data.author?.name || data.maintainers?.[0]?.name,
             downloads: downloads.monthly,
             weekly_downloads: downloads.weekly,
-            quality: scores.quality,
-            popularity: scores.popularity,
-            maintenance: scores.maintenance,
+            quality: scores?.quality ?? 0.5,
+            popularity: scores?.popularity ?? 0.5,
+            maintenance: scores?.maintenance ?? 0.5,
             category: inferCategory(data.keywords),
             keywords: data.keywords,
             license: data.license,
@@ -131,6 +134,7 @@ export async function refreshTopPackages() {
   cleanupOldData();
   setCacheTimestamp('top_packages');
   console.error(`Top packages refreshed: ${successCount} succeeded, ${failCount} failed`);
+  return { success: successCount, failed: failCount, total: POPULAR_PACKAGES.length };
 }
 
 async function getDownloads(packageName: string): Promise<{ monthly: number; weekly: number }> {
@@ -145,91 +149,45 @@ async function getDownloads(packageName: string): Promise<{ monthly: number; wee
   }
 }
 
-async function getQualityScores(packageName: string): Promise<{ quality: number; popularity: number; maintenance: number }> {
-  try {
-    const results = await searchPackages(packageName, 5);
-    const exactMatch = results.objects?.find((obj: any) => obj.package.name === packageName);
-    if (exactMatch?.score?.detail) {
-      return {
-        quality: exactMatch.score.detail.quality,
-        popularity: exactMatch.score.detail.popularity,
-        maintenance: exactMatch.score.detail.maintenance,
-      };
-    }
-  } catch {
-    // Fallback to default values if search fails
-  }
-  return { quality: 0.5, popularity: 0.5, maintenance: 0.5 };
-}
-
-function inferCategory(keywords?: string[]): string | null {
-  if (!keywords) return null;
+export function inferCategory(keywords?: string[]): string | null {
+  if (!keywords || keywords.length === 0) return null;
 
   const kw = keywords.map(k => k.toLowerCase());
 
-  // Framework categories
-  if (kw.some(k => ['react', 'vue', 'angular', 'svelte', 'solid', 'preact', 'lit'].includes(k)))
-    return 'web-framework';
-  if (kw.some(k => ['next', 'nuxt', 'gatsby', 'remix', 'astro', 'sveltekit'].includes(k)))
-    return 'meta-framework';
-  if (kw.some(k => ['express', 'fastify', 'koa', 'hapi', 'nestjs'].includes(k)))
-    return 'backend-framework';
+  const signals: Array<[string, string[]]> = [
+    ['types', ['types', '@types', 'typings', 'dts']],
+    ['css-in-js', ['styled-components', 'emotion', 'css-in-js', 'cssinjs']],
+    ['web-framework', ['react', 'reactjs', 'vue', 'vuejs', 'angular', 'svelte', 'solid', 'solidjs', 'preact', 'lit', 'hyperapp']],
+    ['meta-framework', ['next', 'nextjs', 'nuxt', 'nuxtjs', 'gatsby', 'remix', 'astro', 'sveltekit']],
+    ['backend-framework', ['express', 'fastify', 'koa', 'hapi', 'nestjs', 'koa2']],
+    ['build-tool', ['webpack', 'vite', 'rollup', 'parcel', 'esbuild', 'bundler', 'build-tool', 'turbopack', 'swc']],
+    ['compiler', ['babel', 'typescript', 'compiler', 'transpiler', 'tsc']],
+    ['testing', ['test', 'testing', 'jest', 'mocha', 'vitest', 'jasmine', 'assert', 'mock']],
+    ['e2e-testing', ['cypress', 'playwright', 'puppeteer', 'e2e', 'end-to-end']],
+    ['css-framework', ['css', 'tailwind', 'tailwindcss', 'bootstrap', 'sass', 'scss', 'less', 'postcss', 'styling']],
+    ['ui-library', ['component', 'components', 'ui', 'design-system', 'material', 'material-ui', 'antd', 'ant-design', 'chakra', 'headless']],
+    ['state-management', ['redux', 'mobx', 'zustand', 'state', 'store', 'pinia', 'vuex', 'recoil', 'jotai']],
+    ['database', ['database', 'db', 'sql', 'nosql', 'mongo', 'mongodb', 'postgres', 'postgresql', 'redis']],
+    ['orm', ['orm', 'prisma', 'typeorm', 'sequelize', 'mongoose', 'drizzle', 'knex', 'query-builder']],
+    ['http-client', ['http', 'fetch', 'axios', 'request', 'ajax', 'got', 'superagent']],
+    ['graphql', ['graphql', 'apollo', 'relay', 'gql']],
+    ['cli-tool', ['cli', 'command', 'commander', 'yargs', 'inquirer', 'terminal', 'bin']],
+    ['node-utility', ['node', 'nodejs', 'fs', 'path', 'util', 'fs-extra']],
+    ['linting', ['eslint', 'tslint', 'lint', 'linter', 'biome']],
+    ['formatting', ['prettier', 'format', 'formatter', 'formatting']],
+    ['utility', ['lodash', 'underscore', 'ramda', 'utility', 'helper', 'utils']],
+    ['date-time', ['date', 'time', 'moment', 'dayjs', 'date-fns']],
+    ['validation', ['validation', 'validator', 'zod', 'yup', 'joi', 'schema']],
+  ];
 
-  // Build & Tools
-  if (kw.some(k => ['webpack', 'vite', 'rollup', 'parcel', 'esbuild', 'bundler', 'build'].includes(k)))
-    return 'build-tool';
-  if (kw.some(k => ['babel', 'typescript', 'compiler', 'transpiler'].includes(k)))
-    return 'compiler';
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Testing
-  if (kw.some(k => ['test', 'testing', 'jest', 'mocha', 'vitest', 'jasmine'].includes(k)))
-    return 'testing';
-  if (kw.some(k => ['cypress', 'playwright', 'puppeteer', 'e2e'].includes(k)))
-    return 'e2e-testing';
-
-  // UI & Styling
-  if (kw.some(k => ['css', 'tailwind', 'bootstrap', 'sass', 'less', 'postcss', 'styling'].includes(k)))
-    return 'css-framework';
-  if (kw.some(k => ['component', 'ui', 'design-system', 'material', 'antd', 'chakra'].includes(k)))
-    return 'ui-library';
-  if (kw.some(k => ['styled-components', 'emotion', 'css-in-js'].includes(k)))
-    return 'css-in-js';
-
-  // State & Data
-  if (kw.some(k => ['redux', 'mobx', 'zustand', 'state', 'store', 'pinia', 'vuex'].includes(k)))
-    return 'state-management';
-  if (kw.some(k => ['database', 'db', 'sql', 'nosql', 'mongo', 'postgres'].includes(k)))
-    return 'database';
-  if (kw.some(k => ['orm', 'prisma', 'typeorm', 'sequelize', 'mongoose'].includes(k)))
-    return 'orm';
-
-  // HTTP & API
-  if (kw.some(k => ['http', 'fetch', 'axios', 'request', 'ajax'].includes(k)))
-    return 'http-client';
-  if (kw.some(k => ['graphql', 'apollo', 'relay'].includes(k)))
-    return 'graphql';
-
-  // CLI & Node
-  if (kw.some(k => ['cli', 'command', 'terminal', 'commander', 'yargs'].includes(k)))
-    return 'cli-tool';
-  if (kw.some(k => ['node', 'nodejs', 'fs', 'path', 'util'].includes(k)))
-    return 'node-utility';
-
-  // Code Quality
-  if (kw.some(k => ['eslint', 'tslint', 'lint', 'linter'].includes(k)))
-    return 'linting';
-  if (kw.some(k => ['prettier', 'format', 'formatter'].includes(k)))
-    return 'formatting';
-
-  // Utilities
-  if (kw.some(k => ['lodash', 'underscore', 'ramda', 'utility', 'helper'].includes(k)))
-    return 'utility';
-  if (kw.some(k => ['date', 'time', 'moment', 'dayjs', 'date-fns'].includes(k)))
-    return 'date-time';
-  if (kw.some(k => ['validation', 'validator', 'zod', 'yup', 'joi'].includes(k)))
-    return 'validation';
-  if (kw.some(k => ['types', 'typescript', '@types'].includes(k)))
-    return 'types';
+  for (const [category, sigs] of signals) {
+    for (const sig of sigs) {
+      const re = new RegExp(`(^|\\b|[_-])${escape(sig)}($|\\b|[_-])`);
+      if (kw.some(k => re.test(k))) return category;
+    }
+  }
 
   return null;
 }

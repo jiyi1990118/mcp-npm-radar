@@ -42,77 +42,81 @@ npm run insert-test
 
 ### Hybrid Data Source Pattern / 混合数据源模式
 
-The server uses **two distinct data sources** that serve different purposes:
+The server uses **three data channels**, each routed to its most reliable source:
 
-服务器使用**两个不同的数据源**，各有不同用途：
+服务器使用**三个数据通道**，各自路由到最可靠的源：
 
-1. **npm Registry API** (`src/api/npm.ts`)
-   - Used by: `search_packages`, `get_package_detail`
-   - Real-time data, always current
-   - No local storage required
-   - Subject to API rate limits and network latency
-   
-   **npm 注册表 API** (`src/api/npm.ts`)
-   - 使用工具：`search_packages`、`get_package_detail`
-   - 实时数据，始终最新
-   - 无需本地存储
-   - 受 API 速率限制和网络延迟影响
+1. **Package metadata** (`src/api/npm.ts`, `getPackageInfo`, `GET /<pkg>`)
+   - Uses the fastest selected mirror registry
+   - 1-hour in-memory cache (supports `forceRefresh`)
+   - Used by: `get_package_detail`, `compare_packages`, `check_typescript_support`, `get_package_readme`, `find_alternatives`, `get_related_packages`, `get_package_quality_score`
 
-2. **SQLite Database** (`src/db/`)
+   **包元数据** - 使用最快的镜像注册表，1 小时内存缓存，支持 `forceRefresh`
+
+2. **Search** (`src/api/npm.ts`, `searchPackages`, `/-/v1/search`)
+   - Pinned to the **official npm registry** (NOT the selected mirror)
+   - Mirror search implementations are unreliable: huawei returns 0 results, npmmirror omits the `score` field
+   - 1-hour in-memory cache (supports `forceRefresh`)
+   - Used by: `search_packages`, and indirectly by `find_alternatives`, `get_package_quality_score` (via `getNpmScores`)
+
+   **搜索** - 固定走官方 npm 注册表（不走镜像），因为镜像搜索不可靠（华为云返回 0 结果、npmmirror 缺 `score`）
+
+3. **Download counts** (`src/api/stats.ts`, `data-refresher.ts`)
+   - Hardcoded to `https://api.npmjs.org/downloads/...` (only host that serves them)
+   - Rate-limit-prone (429); `get_package_quality_score` treats download failure as non-fatal
+
+   **下载量** - 写死 `api.npmjs.org`（唯一提供下载统计的主机），易限流（429）
+
+4. **SQLite Database** (`src/db/`)
    - Used by: `get_trending_packages`, `get_top_packages`, `get_weekly_hot`, `get_packages_by_category`, `get_packages_by_date_range`
-   - Pre-cached package data for fast rankings and filtering
-   - Requires periodic updates (not automated in current implementation)
-   - Schema: `packages` table (main cache) + `trending_snapshots` table (for growth calculation)
-   
-   **SQLite 数据库** (`src/db/`)
-   - 使用工具：`get_trending_packages`、`get_top_packages`、`get_weekly_hot`、`get_packages_by_category`、`get_packages_by_date_range`
-   - 预缓存的包数据，用于快速排名和过滤
-   - 需要定期更新（当前实现未自动化）
-   - 模式：`packages` 表（主缓存）+ `trending_snapshots` 表（用于增长计算）
+   - All 5 return `indexed_count` (total packages in DB); if 0, data hasn't been indexed yet
+   - 30-min cache (shared key `'top_packages'`); all 5 share one `refreshTopPackages()` trigger
+   - Scope: only the ~117 hardcoded `POPULAR_PACKAGES` (not registry-wide)
 
-**Why this split?** Search needs real-time data from npm. Rankings/trends need historical data and fast aggregations that the npm API doesn't provide efficiently.
+   **SQLite 数据库** - 5 个 DB 工具均返回 `indexed_count`；30 分钟缓存（共享 `top_packages` 键）；仅覆盖 ~117 个硬编码包
 
-**为什么分开？** 搜索需要来自 npm 的实时数据。排名/趋势需要历史数据和快速聚合，而 npm API 无法高效提供。
+**Why this split?** Each data type has a different reliability/latency tradeoff. Mirrors are fast for metadata but their search is broken. Download stats only exist on npm's host. Rankings need historical aggregation the API can't provide.
+
+**为什么这么分？** 每种数据类型的可靠性和延迟权衡不同。镜像元数据快但搜索坏；下载统计只有 npm 有；排名需要 API 无法提供的历史聚合。
 
 ### Registry Selection / 注册表选择 (`src/utils/registry-selector.ts`)
 
-On server startup, the system tests multiple npm registries (official + mirrors) and selects the fastest:
-- Tests: npm, npmmirror, Tencent cloud, Huawei cloud
+On server startup, the system probes multiple npm registries via `GET /-/ping` (~2-38 bytes, NOT the old `GET /axios` which downloaded 844KB) and selects the fastest:
+- Probes: npm, npmmirror, Tencent cloud, Huawei cloud
 - Rechecks every 6 hours automatically via `getSelectedRegistry()`
-- Falls back to official npm registry if all checks fail
+- Falls back to official npm registry if all probes fail
+- Diagnostics: `checkAllRegistries()` / `getLastRegistryStatuses()` return per-mirror `{name, url, latency, ok}`
+- **Note**: only package metadata uses the selected mirror; search is pinned to official npm (see above)
 
-服务器启动时，系统测试多个 npm 注册表（官方 + 镜像）并选择最快的：
-- 测试：npm、npmmirror、腾讯云、华为云
-- 通过 `getSelectedRegistry()` 每 6 小时自动重新检查
-- 如果所有检查失败，则回退到官方 npm 注册表
+服务器启动时，通过 `GET /-/ping`（~2-38 字节，非旧的 `GET /axios` 844KB）探测多个注册表并选最快的。每 6 小时复检，全失败回退官方 npm。仅包元数据用镜像；搜索固定走官方 npm。
 
-**When modifying**: The 6-hour interval prevents excessive network checks. If adding new registry sources, add to `NPM_REGISTRIES` array.
+**When modifying**: If adding new registry sources, add to `NPM_REGISTRIES` array.
 
-**修改时注意**：6 小时间隔可防止过度的网络检查。如果添加新的注册表源，请添加到 `NPM_REGISTRIES` 数组。
+**修改时注意**：添加新注册表源请加入 `NPM_REGISTRIES` 数组。
 
-### Database Management / 数据库管理
+### Data Population / 数据填充
 
-**Schema location** / **模式位置**: `src/db/schema.sql` (copied to `dist/db/` during build / 构建时复制到 `dist/db/`)
+Database tools return empty results (with `indexed_count: 0`) until packages are inserted. Two ways to populate:
+- `npm run insert-test` - seeds 10 deterministic fake packages + snapshots
+- Background `refreshTopPackages()` - runs hourly on server start, fetches ~117 real packages in batches of 15 (500ms delay). Returns a `RefreshResult` (`{success, failed, total, error?}`) and **never throws** - on registry failure it logs `[REFRESH_ABORTED]`, still sets the cache timestamp, and returns the error.
 
-**Connection** / **连接**: Singleton pattern in `src/db/connection.ts` - database is lazily initialized on first query
-
-单例模式在 `src/db/connection.ts` - 数据库在首次查询时懒加载初始化
-
-**Data Population** / **数据填充**: Database tools (`get_trending_packages`, etc.) will return empty results until packages are inserted. Use `npm run insert-test` to populate test data, or implement a collector to fetch and cache real package data.
-
-数据库工具（`get_trending_packages` 等）在插入包数据之前将返回空结果。使用 `npm run insert-test` 填充测试数据，或实现收集器来获取和缓存真实包数据。
-
-**Trending Calculation** / **趋势计算**: Uses `trending_snapshots` table to compare current downloads against historical snapshots. The query in `getTrendingPackages()` calculates growth by subtracting previous snapshot downloads from current downloads.
-
-使用 `trending_snapshots` 表将当前下载量与历史快照进行比较。`getTrendingPackages()` 中的查询通过减去之前快照的下载量来计算增长。
+数据库工具在插入数据前返回空结果（`indexed_count: 0`）。两种填充方式：`npm run insert-test`（10 个假包）或后台 `refreshTopPackages()`（每小时刷新 ~117 个真实包，返回 `RefreshResult`，永不抛异常）。
 
 ## Key File Purposes / 关键文件用途
 
-- `src/server.ts`: MCP server entrypoint, tool definitions, request routing / MCP 服务器入口点、工具定义、请求路由
-- `src/api/npm.ts`: npm registry HTTP client / npm 注册表 HTTP 客户端
-- `src/db/queries.ts`: All database read/write operations / 所有数据库读写操作
-- `src/db/connection.ts`: SQLite connection singleton / SQLite 连接单例
-- `src/utils/registry-selector.ts`: Registry latency testing and selection logic / 注册表延迟测试和选择逻辑
+- `src/server.ts`: MCP server entrypoint, tool definitions + descriptions, request routing / MCP 服务器入口点、工具定义与描述、请求路由
+- `src/api/npm.ts`: `searchPackages` (official npm) + `getPackageInfo` (mirror) with shared 1h cache (500-entry LRU cap) / 搜索（官方npm）+ 元数据（镜像）+ 共享缓存
+- `src/api/quality.ts`: `getNpmScores` (shared by data-refresher + quality tool) + `getPackageQualityScore` / 质量分数（共享）
+- `src/api/security.ts`: `getPackageVulnerabilities` (returns `checked`) + `findAlternatives` (own-keyword search) / 漏洞检查 + 替代查找
+- `src/api/stats.ts`: `getDownloadHistory` (npm downloads API, 429-prone) / 下载历史
+- `src/api/compare.ts`, `readme.ts`, `related.ts`, `typescript.ts`: other API-backed tools / 其他 API 工具
+- `src/db/queries.ts`: All DB read/write + `getIndexedCount` / 所有数据库读写 + 索引计数
+- `src/db/connection.ts`: SQLite connection singleton (lazy init) / SQLite 连接单例
+- `src/utils/registry-selector.ts`: `/-/ping`-based mirror probe + selection + diagnostics / 镜像探测与选择
+- `src/utils/data-refresher.ts`: `refreshTopPackages` (returns `RefreshResult`, never throws) + `inferCategory` (23 categories) / 刷新 + 分类推断
+- `src/utils/image-downloader.ts`: Parallel image localization for README/detail tools / README 图片本地化
+- `src/utils/retry.ts`: Shared `retryWithBackoff` (skips 4xx) / 共享重试
+- `src/utils/cache-manager.ts`: 30-min DB cache (`top_packages` key) / 30 分钟 DB 缓存
 
 ## Testing / 测试
 

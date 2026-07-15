@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { getPackageInfo } from './npm.js';
 
-export async function checkTypescriptSupport(packageName: string) {
+export async function checkTypescriptSupport(packageName: string, forceRefresh: boolean = false) {
   try {
-    const info = await getPackageInfo(packageName);
+    const info = await getPackageInfo(packageName, forceRefresh);
     const latest = info['dist-tags']?.latest;
     const latestVersion = info.versions?.[latest];
 
@@ -21,7 +21,7 @@ export async function checkTypescriptSupport(packageName: string) {
     let typesPackageVersion = null;
 
     try {
-      const typesInfo = await getPackageInfo(typesPackageName);
+      const typesInfo = await getPackageInfo(typesPackageName, forceRefresh);
       hasDefinitelyTyped = true;
       typesPackageVersion = typesInfo['dist-tags']?.latest;
     } catch {

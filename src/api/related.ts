@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { getPackageInfo } from './npm.js';
 
-export async function getRelatedPackages(packageName: string, limit: number = 10) {
+export async function getRelatedPackages(packageName: string, limit: number = 10, forceRefresh: boolean = false) {
   try {
-    const info = await getPackageInfo(packageName);
+    const info = await getPackageInfo(packageName, forceRefresh);
     const keywords = info.keywords || [];
 
     // 基于关键词搜索相关包
@@ -51,7 +51,7 @@ async function searchByKeywords(keywords: string[], limit: number) {
       name: obj.package.name,
       description: obj.package.description,
       version: obj.package.version,
-      score: obj.score.final,
+      score: obj.score?.final,
     })) || [];
   } catch {
     return [];

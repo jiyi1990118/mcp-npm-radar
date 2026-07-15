@@ -52,6 +52,12 @@ export async function getTopPackages(limit: number = 50, forceRefresh: boolean =
   `).all(limit);
 }
 
+export function getIndexedCount(): number {
+  const db = getDatabase();
+  const row = db.prepare(`SELECT COUNT(*) as count FROM packages`).get() as { count: number };
+  return row.count;
+}
+
 export async function getPackagesByCategory(category: string, limit: number = 50, forceRefresh: boolean = false) {
   if (forceRefresh || !isCacheValid('top_packages')) {
     await refreshTopPackages();

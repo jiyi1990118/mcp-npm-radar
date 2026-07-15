@@ -1,17 +1,63 @@
-import { getPackageInfo } from './npm.js';
+import { getPackageInfo, searchPackages } from './npm.js';
 import { getDownloadHistory } from './stats.js';
 
-export async function getPackageQualityScore(packageName: string) {
+export interface NpmScores {
+  quality: number;
+  popularity: number;
+  maintenance: number;
+}
+
+export async function getNpmScores(packageName: string, forceRefresh: boolean = false): Promise<NpmScores | null> {
   try {
-    const info = await getPackageInfo(packageName);
+    const results = await searchPackages(packageName, 5, forceRefresh);
+    const exactMatch = results.objects?.find((obj: any) => obj.package.name === packageName);
+    if (exactMatch?.score?.detail) {
+      return {
+        quality: exactMatch.score.detail.quality,
+        popularity: exactMatch.score.detail.popularity,
+        maintenance: exactMatch.score.detail.maintenance,
+      };
+    }
+  } catch {
+    // fall through to null
+  }
+  return null;
+}
+
+export async function getPackageQualityScore(packageName: string, forceRefresh: boolean = false) {
+  try {
+    const info = await getPackageInfo(packageName, forceRefresh);
     const latest = info['dist-tags']?.latest;
     const latestVersion = info.versions?.[latest];
-    const downloads = await getDownloadHistory(packageName, 'last-month');
 
-    // Calculate scores
-    const popularityScore = calculatePopularityScore(downloads.totalDownloads);
-    const maintenanceScore = calculateMaintenanceScore(info.time?.[latest]);
-    const qualityScore = calculateQualityScore(info, latestVersion);
+    // Download history is best-effort: the npm downloads API is rate-limit-prone
+    // and the scores below do not depend on it when npm scores are available.
+    let monthlyDownloads: number | null = null;
+    try {
+      const downloads = await getDownloadHistory(packageName, 'last-month');
+      monthlyDownloads = downloads.totalDownloads;
+    } catch {
+      // non-fatal: leave monthlyDownloads null
+    }
+
+    const npmScores = await getNpmScores(packageName);
+
+    let popularityScore: number;
+    let maintenanceScore: number;
+    let qualityScore: number;
+    let scoreSource: 'npm' | 'heuristic';
+
+    if (npmScores) {
+      popularityScore = Math.round(npmScores.popularity * 100);
+      maintenanceScore = Math.round(npmScores.maintenance * 100);
+      qualityScore = Math.round(npmScores.quality * 100);
+      scoreSource = 'npm';
+    } else {
+      popularityScore = calculatePopularityScore(monthlyDownloads ?? 0);
+      maintenanceScore = calculateMaintenanceScore(info.time?.[latest]);
+      qualityScore = calculateQualityScore(info, latestVersion);
+      scoreSource = 'heuristic';
+    }
 
     const overallScore = Math.round((popularityScore + maintenanceScore + qualityScore) / 3);
 
@@ -19,13 +65,14 @@ export async function getPackageQualityScore(packageName: string) {
       package: packageName,
       version: latest,
       overallScore,
+      scoreSource,
       scores: {
         popularity: popularityScore,
         maintenance: maintenanceScore,
         quality: qualityScore,
       },
       details: {
-        monthlyDownloads: downloads.totalDownloads,
+        monthlyDownloads,
         lastPublish: info.time?.[latest],
         hasReadme: !!info.readme,
         hasLicense: !!latestVersion?.license,

@@ -2,11 +2,11 @@ import axios from 'axios';
 import { getSelectedRegistry } from '../utils/registry-selector.js';
 import { getPackageInfo } from './npm.js';
 
-export async function comparePackages(packageNames: string[]) {
+export async function comparePackages(packageNames: string[], forceRefresh: boolean = false) {
   const comparisons = await Promise.all(
     packageNames.map(async (name) => {
       try {
-        const info = await getPackageInfo(name);
+        const info = await getPackageInfo(name, forceRefresh);
         const downloads = await getWeeklyDownloads(name);
         const latest = info['dist-tags']?.latest;
         const latestVersion = info.versions?.[latest];
